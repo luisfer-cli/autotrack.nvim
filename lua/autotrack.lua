@@ -8,28 +8,46 @@ local config = {
 
 local current_tracking = nil
 
-local function is_excluded_filetype(filetype)
+local cache = {
+  project_name = nil,
+  git_branch = nil,
+  git_branch_timestamp = 0,
+  excluded_filetypes = {}
+}
+
+local function build_excluded_cache()
+  cache.excluded_filetypes = {}
   for _, excluded in ipairs(config.exclude_filetypes) do
-    if filetype == excluded then
-      return true
-    end
+    cache.excluded_filetypes[excluded] = true
   end
-  return false
+end
+
+local function is_excluded_filetype(filetype)
+  return cache.excluded_filetypes[filetype] == true
 end
 
 local function get_project_name()
-  local cwd = vim.fn.getcwd()
-  return vim.fn.fnamemodify(cwd, ":t")
+  if not cache.project_name then
+    local cwd = vim.fn.getcwd()
+    cache.project_name = vim.fn.fnamemodify(cwd, ":t")
+  end
+  return cache.project_name
 end
 
 local function get_git_branch()
-  local handle = io.popen("git branch --show-current 2>/dev/null")
-  if handle then
-    local branch = handle:read("*a"):gsub("\n", "")
-    handle:close()
-    return branch ~= "" and branch or "no-git"
+  local current_time = vim.loop.hrtime()
+  if not cache.git_branch or (current_time - cache.git_branch_timestamp) > 5000000000 then
+    local handle = io.popen("git branch --show-current 2>/dev/null")
+    if handle then
+      local branch = handle:read("*a"):gsub("\n", "")
+      handle:close()
+      cache.git_branch = branch ~= "" and branch or "no-git"
+    else
+      cache.git_branch = "no-git"
+    end
+    cache.git_branch_timestamp = current_time
   end
-  return "no-git"
+  return cache.git_branch
 end
 
 local function get_file_language(filetype)
@@ -76,26 +94,34 @@ end
 local function on_buffer_enter()
   local filetype = vim.bo.filetype
   
-  if current_tracking then
-    local new_project = get_project_name()
-    local new_branch = get_git_branch()
-    local new_language = get_file_language(filetype)
-    
-    if current_tracking.project ~= new_project or 
-       current_tracking.branch ~= new_branch or 
-       current_tracking.language ~= new_language then
+  if is_excluded_filetype(filetype) then
+    if current_tracking then
       stop_tracking()
-      start_tracking(filetype)
     end
-  else
-    start_tracking(filetype)
+    return
   end
+  
+  local new_project = get_project_name()
+  local new_branch = get_git_branch()
+  local new_language = get_file_language(filetype)
+  
+  if current_tracking and 
+     current_tracking.project == new_project and
+     current_tracking.branch == new_branch and 
+     current_tracking.language == new_language then
+    return
+  end
+  
+  if current_tracking then
+    stop_tracking()
+  end
+  start_tracking(filetype)
 end
 
 local function setup_autocommands()
   local group = vim.api.nvim_create_augroup("AutoTrack", { clear = true })
   
-  vim.api.nvim_create_autocmd({ "BufEnter", "BufWinEnter" }, {
+  vim.api.nvim_create_autocmd("BufEnter", {
     group = group,
     callback = on_buffer_enter
   })
@@ -105,16 +131,20 @@ local function setup_autocommands()
     callback = stop_tracking
   })
   
-  vim.api.nvim_create_autocmd("FileType", {
+  vim.api.nvim_create_autocmd("DirChanged", {
     group = group,
     callback = function()
-      vim.defer_fn(on_buffer_enter, 100)
+      cache.project_name = nil
+      cache.git_branch = nil
+      cache.git_branch_timestamp = 0
+      on_buffer_enter()
     end
   })
 end
 
 function M.setup(opts)
   config = vim.tbl_deep_extend("force", config, opts or {})
+  build_excluded_cache()
   setup_autocommands()
 end
 
