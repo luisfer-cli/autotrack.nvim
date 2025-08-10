@@ -1,77 +1,106 @@
 # autotrack.nvim
 
-Plugin de Neovim para autotracking automático con timewarrior.
+Neovim plugin for automatic time tracking with timewarrior.
 
-## Características
+## Features
 
-- Detecta automáticamente cuando cambias de archivo/buffer
-- Inicia/para el tracking con timewarrior automáticamente
-- Incluye tags para:
-  - Nombre del proyecto (carpeta actual)
-  - Rama de git actual
-  - Tipo de archivo/lenguaje de programación
-- Configuración personalizable
+- Automatically detects when you switch files/buffers
+- Starts/stops timewarrior tracking automatically
+- Includes tags for:
+  - Project name (current directory)
+  - Current git branch
+  - File type/programming language
+- Customizable configuration
 
-## Instalación
+## Installation
 
-### Con lazy.nvim
+### With lazy.nvim
 ```lua
 {
-  "tuusuario/autotrack.nvim",
+  "luisfer-cli/autotrack.nvim",
   config = function()
     require("autotrack").setup()
   end
 }
 ```
 
-### Con packer.nvim
+### With packer.nvim
 ```lua
 use {
-  "tuusuario/autotrack.nvim",
+  "luisfer-cli/autotrack.nvim",
   config = function()
     require("autotrack").setup()
   end
 }
 ```
 
-## Configuración
+## Configuration
 
 ```lua
 require("autotrack").setup({
-  enabled = true,                                    -- Habilitar autotracking por defecto
-  task_name = "autotrack.nvim",                     -- Nombre de la tarea en timewarrior
-  exclude_filetypes = { "help", "qf", "netrw", "fugitive", "git" }  -- Tipos de archivo a excluir
+  enabled = true,                                    -- Enable autotracking by default
+  task_name = "autotrack.nvim",                     -- Task name in timewarrior
+  exclude_filetypes = { "help", "qf", "netrw", "fugitive", "git" }  -- File types to exclude
 })
 ```
 
-## Comandos
+## Commands
 
-- `:AutotrackStart` - Iniciar autotracking
-- `:AutotrackStop` - Parar autotracking
-- `:AutotrackToggle` - Alternar autotracking
-- `:AutotrackStatus` - Mostrar estado actual
+- `:AutotrackStart` - Start autotracking
+- `:AutotrackStop` - Stop autotracking
+- `:AutotrackToggle` - Toggle autotracking
+- `:AutotrackStatus` - Show current status
 
-## Uso
+## Usage
 
-El plugin se inicia automáticamente cuando se carga. Cada vez que cambies de buffer:
+The plugin starts automatically when loaded. Every time you switch buffers:
 
-1. Para el tracking actual (si existe)
-2. Inicia un nuevo tracking con tags:
-   - `autotrack.nvim` (nombre de tarea)
-   - `project:nombre_proyecto` (nombre de la carpeta)
-   - `branch:rama_actual` (rama de git)
-   - `lang:tipo_archivo` (lenguaje/tipo de archivo)
+1. Stops current tracking (if any)
+2. Starts new tracking with tags:
+   - `autotrack.nvim` (task name)
+   - `project:project_name` (directory name)
+   - `branch:current_branch` (git branch or "no-git")
+   - `lang:file_type` (language/file type)
 
-## Ejemplo de datos en timewarrior
+## Timewarrior Report Examples
 
-```
-timew summary project:mi-proyecto lang:lua
-timew summary branch:feature/nueva-funcionalidad
+```bash
+# View general plugin summary
 timew summary autotrack.nvim
+
+# View time by specific project
+timew summary project:my-project
+
+# View time by git branch
+timew summary branch:main
+timew summary branch:feature/new-feature
+
+# View time by programming language
+timew summary lang:lua
+timew summary lang:python
+timew summary lang:javascript
+
+# Combine tags for more specific analysis
+timew summary project:my-project lang:lua
+timew summary project:my-project branch:main
+timew summary autotrack.nvim project:my-project
+
+# View detailed reports
+timew report project:my-project
+timew report lang:python :week
+
+# View statistics by day/week/month
+timew day project:my-project
+timew week lang:lua
+timew month autotrack.nvim
+
+# Export data
+timew export project:my-project
+timew export autotrack.nvim :month
 ```
 
-## Requisitos
+## Requirements
 
 - Neovim 0.7+
-- timewarrior instalado y configurado
-- Git (opcional, para detección de ramas)
+- timewarrior installed and configured
+- Git (optional, for branch detection)
